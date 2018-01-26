@@ -21,6 +21,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Component
@@ -71,6 +72,12 @@ public class SpreadsheetProcessor {
     }
 
     private void convertSheetToObject(String sheetName) {
+        SheetData sheetData = extractData(sheetName);
+        generateJson(sheetData);
+    }
+
+    private SheetData extractData(String sheetName) {
+        SheetData sheetData = new SheetData(sheetName);
         Sheet sheet = workbook.getSheet(sheetName);
         if (!verticalSheets.contains(sheetName)) {
             List<String> headers = new ArrayList<>();
@@ -84,7 +91,8 @@ public class SpreadsheetProcessor {
                     }
                 }
             }
-            List<List<String>> data = new ArrayList<List<String>>();
+            sheetData.setHeaders(headers);
+            List<List<String>> dataRows = new ArrayList<>();
             for (int rownum = sheet.getFirstRowNum() + 1; rownum <= sheet.getLastRowNum(); rownum++) {
                 List<String> values = new ArrayList<>();
                 Row row = sheet.getRow(rownum);
@@ -107,48 +115,32 @@ public class SpreadsheetProcessor {
                     values.add(value);
                 }
                 if (!empty) {
-                    data.add(values);
+                    dataRows.add(values);
                 }
             }
-            printResults(sheetName, headers, data);
-            generateJson(sheetName, headers, data);
+            sheetData.setDataRows(dataRows);
         }
+        return sheetData;
     }
 
-    private void generateJson(String sheetName, List<String> headers, List<List<String>> data) {
-        {
-            for (List<String> values : data) {
-                JsonFactory jsonFactory = new JsonFactory();
-                ByteArrayOutputStream output = new ByteArrayOutputStream();
-                JsonGenerator jsonGen = null;
-                try {
-                    jsonGen = jsonFactory.createJsonGenerator(output, JsonEncoding.UTF8);
-                    jsonGen.setPrettyPrinter(new DefaultPrettyPrinter());
-                    jsonGen.writeStartObject();
-                    int i = 0;
-                    for (String header : headers) {
-                        jsonGen.writeStringField(header, values.get(i));
-                        i++;
-                    }
-                    jsonGen.writeEndObject();
-                    jsonGen.close();
-                    System.out.println(output.toString(StandardCharsets.UTF_8.name()));
-                } catch (IOException e) {
-                    e.printStackTrace();
+    private void generateJson(SheetData sheetData) {
+        for (List<String> row : sheetData.getDataRows()) {
+            JsonFactory jsonFactory = new JsonFactory();
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            try {
+                JsonGenerator jsonGen = jsonFactory.createGenerator(output, JsonEncoding.UTF8);
+                jsonGen.setPrettyPrinter(new DefaultPrettyPrinter());
+                jsonGen.writeStartObject();
+                int i = 0;
+                for (String header : sheetData.getHeaders()) {
+                    jsonGen.writeStringField(header, row.get(i));
+                    i++;
                 }
-            }
-        }
-    }
-
-    private void printResults(String sheetName, List<String> headers, List<List<String>> data) {
-        System.out.println("\n\nSheet: " + sheetName);
-        for (String header : headers) {
-            System.out.print(header + '\t');
-        }
-        for (List<String> values : data) {
-            System.out.println("");
-            for (String value : values) {
-                System.out.print(value + '\t');
+                jsonGen.writeEndObject();
+                jsonGen.close();
+                System.out.println(output.toString(StandardCharsets.UTF_8.name()));
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -229,6 +221,38 @@ public class SpreadsheetProcessor {
             return "SpreadsheetValidationResults{" +
                     "checkSheetsResult=" + checkSheetsResult +
                     '}';
+        }
+    }
+
+    private class SheetData {
+
+        private final String sheetName;
+
+        private List<String> headers = Collections.emptyList();
+        private List<List<String>> dataRows = Collections.emptyList();
+
+        public SheetData(String sheetName) {
+            this.sheetName = sheetName;
+        }
+
+        public String getSheetName() {
+            return sheetName;
+        }
+
+        public List<String> getHeaders() {
+            return headers;
+        }
+
+        public List<List<String>> getDataRows() {
+            return dataRows;
+        }
+
+        public void setHeaders(List<String> headers) {
+            this.headers = headers;
+        }
+
+        public void setDataRows(List<List<String>> dataRows) {
+            this.dataRows = dataRows;
         }
     }
 }
