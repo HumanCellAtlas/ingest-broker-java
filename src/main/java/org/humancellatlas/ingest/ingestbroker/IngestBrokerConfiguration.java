@@ -10,9 +10,6 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 @PropertySource("classpath:ingest-broker.properties")
 public class IngestBrokerConfiguration {
 
-    @Value("${ingest.broker.valid-sheets}")
-    public String name;
-
     @Bean
     public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
         return new PropertySourcesPlaceholderConfigurer();
